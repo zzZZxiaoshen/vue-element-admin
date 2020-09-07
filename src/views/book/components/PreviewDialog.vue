@@ -27,9 +27,9 @@
         </el-button>
     </div>
     </el-dialog>
-<!--     <span @click="visible = true">-->
-<!--      <slot />-->
-<!--    </span>-->
+     <span @click="visible = true">
+      <slot />
+    </span>
     </span>
 
 </template>
@@ -51,7 +51,8 @@
     },
     data() {
       return {
-        formData: {}
+        formData: {},
+        visible: false
       }
     },
     created() {

@@ -60,7 +60,7 @@
         显示封面
       </el-checkbox>
     </div>
-    <!--图书别表渲染-->
+    <!--图书列表渲染-->
     <el-table
       :key="tableKey"
       v-loading="listLoading"
@@ -79,9 +79,14 @@
         width="80"
         :class-name="getSortClass('id')"
       />
+      <el-table-column label="书名" width="150" align="center">
+        <template slot-scope="{ row: { titleWrapper }}">
+          <span v-html="titleWrapper" />
+        </template>
+      </el-table-column>
       <el-table-column label="作者" width="150" align="center">
-        <template slot-scope="{row:{authorWrappe}}">
-          <span v-html="authorWrappe"/>
+        <template slot-scope="{row:{authorWrapper}}">
+          <span v-html="authorWrapper"/>
         </template>
       </el-table-column>
       <el-table-column label="出版社" prop="publisher" width="150" align="center"/>
@@ -120,12 +125,12 @@
       </el-table-column>
 
       <el-table-column label="操作" width="120" align="center" fixed="right">
-        <template slot-scope="{scope}">
+        <template slot-scope="{row}">
           <PreviewDialog title="电子书信息" :data='row'>
             <el-button type="text" icon="el-icon-view" />
           </PreviewDialog>
           <el-button type="text" icon="el-icon-edit" @click="handleUpdate(row)"/>
-          <el-button type="text" icon="el-icon-edit" @click="handleDelete(row)"/>
+          <el-button type="text" icon="el-icon-delete" @click="handleDelete(row)"/>
         </template>
       </el-table-column>
     </el-table>
@@ -134,6 +139,8 @@
 
 <script>
   import PreviewDialog from './components/PreviewDialog'
+  import {listBook,getCategory,deleteBook} from '@/api/book'
+  import { parseTime } from '@/utils'
   /* eslint-disable */
   export default {
     name: "list",
@@ -159,48 +166,147 @@
         listQuery: {},
         listLoading: false,
         tableKey: 0,
-        list: [],
+        list: null,
         categoryList:[],
         showCover:false
       }
     },
     created() {
-      //初始化加载列表数据
-
-
+      this.parseQuery()
+    },
+    mounted() {
+      //初始化加载图书列表数据
+      this.getList();
+      //初始化加载分类
+      // this.getCategoryList();
     },
     methods: {
 //--------------------------------------------更能函数-------------------------------------------
+      parseQuery() {
+        const query = Object.assign({}, this.$route.query);
+
+        let listQuery = {
+          page: 1,
+          pageSize: 20,
+          sort: '-id'
+        };
+        if (query) {
+          query.page && (query.page= Number(query.page))
+          query.pageSize && (query.pageSize = Number(query.pageSize))
+
+          listQuery = {
+           ...listQuery,
+           ...query
+          }
+        }
+        this.listQuery = listQuery;
+      },
+      wrapperKeyword(k, v) {
+        function hightlight(value) {
+          return '<span style="color: #1890ff">'+value + '</span>'
+        }
+
+        if (!this.listQuery[k]) {
+          return v;
+        } else {
+          return v.replace(new RegExp(this.listQuery[k],'ig'),v=>{
+            hightlight(v);
+          })
+        }
+      },
+      sortById(order) {
+        if (order === 'descending') { //降序
+          this.listQuery.sort = '+id'
+        } else {
+          this.listQuery.sort = '-id'
+        }
+      },
+      // 配置路由参数回显功能函数
+      refresh(){
+        this.$router.push({
+          path: '/book/list',
+          query: this.listQuery
+        })
+      },
 //--------------------------------------------网络请求--------------------------------------------
-      handleFilter() {
-
-      },
-      getBookList(){
-
-      },
+      getCategoryList() {
+        getCategory().then(res =>{
+          this.categoryList = res.data
+        })
+      } ,
 //--------------------------------------------事件绑定---------------------------------------------
+      handleFilter() {
+        //根据条件请求刷新数据
+        //初始化查询条件
+        this.listQuery.page = 1;
+        //根据条件刷新页面
+        this.refresh();
+      },
+      // 点击按条件查询
       forceRefresh() {
-
+        window.location.reload();
+        // this.getList();
       },
+      //新增图书
       handleCreate() {
-
+        this.$router.push('/book/create')
       },
-      changeShowCover() {
-
+      changeShowCover(value) {
+        this.showCover = value
       },
-      sortChange() {
-
+      sortChange(key) {
+        const {prop,order} = key;
+        //descending 降序 ascending 升序
+        if (prop === 'id') {
+          this.sortById(order)
+        }
       },
-      getSortClass() {
-
+      // 获取排序点击的列 ，然后进行列表渲染
+      getSortClass(key) {
+        const sort = this.listQuery;
+        return sort === `+${key}` ?
+          "ascending":
+          sort ===`-${key}` ? 'descending': ''
       },
-      handleUpdate(){
-
+      handleUpdate(row){
+        const {fileName} = row;
+      this.$router.push(`/book/edit/${fileName}`)
       },
-      handleDelete(){
+      handleDelete(row){
+        //请求删除接口
+        this.$confirm('此操作将永久删除该电子书, 是否继续?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(()=>{
+          deleteBook(row.fileName).then(res=>{
+            this.$notify({
+              title: '成功',
+              message: res.msg,
+              type: "success",
+              duration: 2000
+            });
+          })
+        })
+      },
+      getList() {
+        this.loading = true;
+        listBook(this.listQuery).then(res=>{
+          const {
+            data, total
+          } = res;
+          this.list = data;
+          this.total = total;
+          this.loading = false;
+          this.list.forEach(book =>{
+            book.titleWrapper = this.wrapperKeyword('title', book.title);
+            book.authorWrapper = this.wrapperKeyword('author', book.title);
+          })
+        })
+      },
+    },
 
-      }
-    }
+
   }
 </script>
 
