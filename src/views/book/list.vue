@@ -134,17 +134,26 @@
         </template>
       </el-table-column>
     </el-table>
+<!--    分页-->
+ <pagination
+   v-show="total > 0"
+   :total="total"
+   :page.sync="listQuery.page"
+   :limit.sync="listQuery.pageSize"
+   @pagination ="refresh"
+ />
   </div>
 </template>
 
 <script>
   import PreviewDialog from './components/PreviewDialog'
+  import Pagination from '@/components/Pagination/index'
   import {listBook,getCategory,deleteBook} from '@/api/book'
   import { parseTime } from '@/utils'
   /* eslint-disable */
   export default {
     name: "list",
-    components:{PreviewDialog},
+    components:{PreviewDialog,Pagination},
     filters: {
       timeFiler(time){
         if (time) {
@@ -167,6 +176,7 @@
         listLoading: false,
         tableKey: 0,
         list: null,
+        total:0,
         categoryList:[],
         showCover:false
       }
@@ -179,6 +189,20 @@
       this.getList();
       //初始化加载分类
       // this.getCategoryList();
+    },
+    //监听路由数据发生变化事件
+    beforeRouteUpdate(to,from,next){
+    //比较是不是相同路由地址
+      if (to.path  ===from.path) {
+      //如果是那么判断参数是否发生变化
+
+        const newQuery = Object.assign({}, to.query)
+        const oldQuery = Object.assign({}, from.query)
+        if (JSON.stringify(newQuery) !== JSON.stringify(oldQuery)) {
+          this.getList()
+        }
+      }
+      next()
     },
     methods: {
 //--------------------------------------------更能函数-------------------------------------------
@@ -223,6 +247,7 @@
       },
       // 配置路由参数回显功能函数
       refresh(){
+      // debugger
         this.$router.push({
           path: '/book/list',
           query: this.listQuery
@@ -269,7 +294,7 @@
           sort ===`-${key}` ? 'descending': ''
       },
       handleUpdate(row){
-        const {fileName} = row;
+       const {fileName} = row;
       this.$router.push(`/book/edit/${fileName}`)
       },
       handleDelete(row){
